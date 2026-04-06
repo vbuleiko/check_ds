@@ -11,8 +11,9 @@ __pycache__/
 dist/
 build/
 
-# Uploads
+# Uploads & data
 uploads/
+old/
 
 # IDE
 .vscode/

@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Абсолютный путь к SQLite внутри контейнера
+      DATABASE_URL: sqlite:////app/check_ds.db
+      # 7z на Linux после установки p7zip-full
+      SEVENZIP_PATH: /usr/bin/7z
+      # EXTERNAL_DB_URL берётся из .env
+    volumes:
+      # SQLite — существующий файл БД
+      - ./check_ds.db:/app/check_ds.db
+      # Загруженные архивы
+      - ./uploads:/app/uploads
+      # Старые данные для импорта
+      - ./old:/app/old
+    extra_hosts:
+      - "supper-01:192.168.0.189"
+    restart: unless-stopped

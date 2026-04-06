@@ -1,0 +1,35 @@
+# Секреты и конфиги окружения
+.env
+
+# База данных (монтируется как volume)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Загруженные файлы (монтируются как volume)
+uploads/
+old/
+
+# Python кеш
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Временные файлы Office
+~$*
+
+# Вывод/логи
+output.txt
+
+# Git
+.git/
+.gitignore
+
+# Тесты (не нужны в образе)
+tests/
+
+# Одиночные скрипты в корне
+parse_route_315_xls.py
+extract_contract_info.py
