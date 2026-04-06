@@ -62,7 +62,7 @@ app.include_router(route_params_editor.router, prefix="/api/params-editor", tags
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Главная страница."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.get("/api/contracts")
