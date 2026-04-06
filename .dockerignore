@@ -6,6 +6,7 @@
 *.db-journal
 *.db-shm
 *.db-wal
+data/
 
 # Загруженные файлы (монтируются как volume)
 uploads/
