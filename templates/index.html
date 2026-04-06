@@ -1,0 +1,1944 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab active" data-tab="upload">
+        <i class="fas fa-upload tab-icon"></i>Загрузка ДС
+    </button>
+    <button class="tab" data-tab="agreements">
+        <i class="fas fa-file-alt tab-icon"></i>Соглашения
+    </button>
+    <button class="tab" data-tab="table-checks">
+        <i class="fas fa-table tab-icon"></i>Проверка таблиц
+    </button>
+    <button class="tab" data-tab="calendar">
+        <i class="fas fa-calendar-alt tab-icon"></i>Календарь
+    </button>
+    <button class="tab" data-tab="calculations">
+        <i class="fas fa-calculator tab-icon"></i>Расчёты
+    </button>
+    <button class="tab" data-tab="stages">
+        <i class="fas fa-list-ol tab-icon"></i>Этапы
+    </button>
+    <button class="tab" data-tab="acts">
+        <i class="fas fa-file-invoice tab-icon"></i>Загрузка актов
+    </button>
+    <button class="tab" data-tab="params-editor">
+        <i class="fas fa-sliders-h tab-icon"></i>Редактирование параметров
+    </button>
+</div>
+
+<!-- Tab: Upload -->
+<div class="tab-content active" id="tab-upload">
+    <div class="two-columns">
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-cloud-upload-alt"></i>
+                Загрузить ДС
+            </div>
+
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">
+                    <i class="fas fa-file-upload"></i>
+                </div>
+                <div class="upload-text">Перетащите файл сюда или нажмите для выбора</div>
+                <div class="upload-hint">Архив (ZIP, RAR) — изменение параметров, документ (DOC, DOCX) — высвобождение</div>
+                <input type="file" id="file-input" accept=".zip,.rar,.doc,.docx" style="display: none;">
+            </div>
+
+            <div id="upload-file-type" style="display: none; margin-top: 8px;" class="badge badge-default"></div>
+
+            <button class="btn btn-primary btn-lg" style="width: 100%; margin-top: 16px;" onclick="uploadFile()" id="upload-btn" disabled>
+                <i class="fas fa-check"></i>
+                Проверить
+            </button>
+            <button class="btn btn-primary btn-lg" style="width: 100%; margin-top: 16px; display: none;" onclick="resetUploadArea()" id="reset-btn">
+                <i class="fas fa-plus"></i>
+                Загрузить другой ДС
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-clipboard-check"></i>
+                Результат проверки
+            </div>
+
+            <div id="upload-result">
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                    <div>Загрузите архив для проверки</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Agreements -->
+<div class="tab-content" id="tab-agreements">
+    <div class="card">
+        <div class="card-title">
+            <i class="fas fa-list"></i>
+            Список дополнительных соглашений
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+            <select class="form-select" id="agr-filter-contract" style="width: auto;" onchange="loadAgreements()">
+                <option value="">Все контракты</option>
+            </select>
+            <select class="form-select" id="agr-filter-ds-type" style="width: auto;" onchange="loadAgreements()">
+                <option value="">Все типы</option>
+                <option value="params">Изменение параметров</option>
+                <option value="vysvobozhdenie">Высвобождение</option>
+            </select>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th class="sortable" data-sort="contract_number" onclick="agrSort('contract_number')">Контракт <i class="fas fa-sort"></i></th>
+                        <th class="sortable" data-sort="ds_number" onclick="agrSort('ds_number')">№ ДС <i class="fas fa-sort"></i></th>
+                        <th class="sortable" data-sort="ds_type" onclick="agrSort('ds_type')">Тип <i class="fas fa-sort"></i></th>
+                        <th>Статус</th>
+                        <th>Ошибки</th>
+                        <th class="sortable" data-sort="created_at" onclick="agrSort('created_at')">Дата загрузки <i class="fas fa-sort"></i></th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="agreements-table">
+                    <tr>
+                        <td colspan="8" class="empty-state">Загрузка...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- История высвобождений -->
+    <div class="card" style="margin-top: 16px;">
+        <div class="card-title" style="cursor: pointer; user-select: none;" onclick="toggleVysvHistory()">
+            <i class="fas fa-unlock-alt"></i>
+            История высвобождений
+            <span id="vysv-history-count" style="margin-left: 8px; font-size: 13px; color: var(--text-secondary);"></span>
+            <i id="vysv-history-chevron" class="fas fa-chevron-down" style="margin-left: auto; transition: transform 0.2s;"></i>
+        </div>
+        <div id="vysv-history-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Контракт</th>
+                            <th>№ ДС</th>
+                            <th>Тип</th>
+                            <th>Закрытый этап</th>
+                            <th>Сумма высвобождения</th>
+                            <th>Новая цена контракта</th>
+                            <th>Дата загрузки</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vysv-history-table">
+                        <tr><td colspan="8" class="empty-state">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Table Checks -->
+<div class="tab-content" id="tab-table-checks">
+
+    <!-- Selector card -->
+    <div class="card" style="margin-bottom: 16px;">
+        <div class="card-title">
+            <i class="fas fa-table"></i>
+            Проверка таблиц дополнительного соглашения
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group" style="margin-bottom: 0; min-width: 140px;">
+                <label class="form-label">Контракт</label>
+                <select class="form-select" id="tc-contract" onchange="tcLoadAgreements()">
+                    <option value="">— выберите контракт —</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0; min-width: 200px;">
+                <label class="form-label">Дополнительное соглашение</label>
+                <select class="form-select" id="tc-agreement">
+                    <option value="">— выберите ДС —</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="tc-run-btn" onclick="tcRunChecks()">
+                <i class="fas fa-search"></i>
+                Проверить
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="tc-loading" style="display:none; margin-bottom: 16px;">
+        <div style="padding: 14px 18px; background: #e6f4ff; border: 1px solid #91caff; border-radius: 6px;
+                    font-size: 13px; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-spinner fa-spin" style="color: #1677ff; font-size: 16px;"></i>
+            <span>Выполняется проверка…</span>
+        </div>
+    </div>
+
+    <!-- Previous DS info banner -->
+    <div id="tc-prev-banner" style="display:none; margin-bottom: 16px;"></div>
+
+    <!-- Reference data block (shown when no previous DS found) -->
+    <div id="tc-reference-block" style="display:none; margin-bottom: 16px;">
+        <div class="card" style="border-left: 4px solid #faad14;">
+            <div class="card-title" style="color: #d48806;">
+                <i class="fas fa-exclamation-triangle"></i>
+                Предыдущий ДС не найден в системе — введите эталонные данные
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">№ предыдущего ДС</label>
+                    <input type="text" class="form-input" id="tc-ref-ds-number" placeholder="напр. 52">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Объём при заключении (км)</label>
+                    <input type="number" step="0.01" class="form-input" id="tc-ref-initial-km" placeholder="122170346.72">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Пробег этапов пред. ДС (км)</label>
+                    <input type="number" step="0.01" class="form-input" id="tc-ref-probeg" placeholder="121026084.76">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Примечание</label>
+                    <input type="text" class="form-input" id="tc-ref-note" placeholder="необязательно">
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button class="btn btn-primary btn-sm" onclick="tcSaveReference()">
+                    <i class="fas fa-save"></i> Сохранить эталон и перепроверить
+                </button>
+                <div id="tc-ref-save-status" style="font-size: 12px; color: var(--text-secondary);"></div>
+            </div>
+
+            <!-- Existing references list -->
+            <div id="tc-existing-refs" style="margin-top: 16px;"></div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="tc-results" style="display:none;">
+
+        <!-- 1. Расчет изменения объема -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div class="card-title" style="cursor: pointer;" onclick="tcToggleSection('tc-sec-raschet')">
+                <i class="fas fa-exchange-alt"></i>
+                1. Расчет изменения объема
+                <span id="tc-appendix-raschet" style="font-size: 12px; font-weight: normal; color: #888; margin-left: 8px;"></span>
+                <i class="fas fa-chevron-up" id="tc-sec-raschet-icon" style="margin-left: auto; font-size: 12px;"></i>
+            </div>
+            <div id="tc-sec-raschet">
+                <!-- Checks -->
+                <div id="tc-checks-raschet" style="margin-bottom: 16px;"></div>
+                <!-- Table -->
+                <div class="table-container" id="tc-table-raschet-wrap">
+                    <table id="tc-table-raschet">
+                        <thead><tr id="tc-table-raschet-head"></tr></thead>
+                        <tbody id="tc-table-raschet-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Этапы исполнения (сроки) -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div class="card-title" style="cursor: pointer;" onclick="tcToggleSection('tc-sec-etapy-sroki')">
+                <i class="fas fa-calendar-check"></i>
+                2. Этапы исполнения Контракта (сроки выполнения работ)
+                <span id="tc-appendix-etapy-sroki" style="font-size: 12px; font-weight: normal; color: #888; margin-left: 8px;"></span>
+                <i class="fas fa-chevron-up" id="tc-sec-etapy-sroki-icon" style="margin-left: auto; font-size: 12px;"></i>
+            </div>
+            <div id="tc-sec-etapy-sroki">
+                <div id="tc-etapy-sroki-legend" style="margin-bottom: 8px;"></div>
+                <div class="table-container">
+                    <table id="tc-table-etapy-sroki">
+                        <thead><tr id="tc-table-etapy-sroki-head"></tr></thead>
+                        <tbody id="tc-table-etapy-sroki-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Финансирование -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div class="card-title" style="cursor: pointer;" onclick="tcToggleSection('tc-sec-finansirovanie')">
+                <i class="fas fa-ruble-sign"></i>
+                3. Финансирование по годам
+                <span id="tc-appendix-finansirovanie" style="font-size: 12px; font-weight: normal; color: #888; margin-left: 8px;"></span>
+                <i class="fas fa-chevron-up" id="tc-sec-finansirovanie-icon" style="margin-left: auto; font-size: 12px;"></i>
+            </div>
+            <div id="tc-sec-finansirovanie">
+                <div id="tc-checks-finansirovanie" style="margin-bottom: 16px;"></div>
+                <div class="table-container">
+                    <table id="tc-table-finansirovanie">
+                        <thead><tr id="tc-table-finansirovanie-head"></tr></thead>
+                        <tbody id="tc-table-finansirovanie-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Этапы с авансами -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div class="card-title" style="cursor: pointer;" onclick="tcToggleSection('tc-sec-avans')">
+                <i class="fas fa-money-bill-wave"></i>
+                4. Этапы исполнения Контракта (с учётом авансов)
+                <span id="tc-appendix-avans" style="font-size: 12px; font-weight: normal; color: #888; margin-left: 8px;"></span>
+                <i class="fas fa-chevron-up" id="tc-sec-avans-icon" style="margin-left: auto; font-size: 12px;"></i>
+            </div>
+            <div id="tc-sec-avans">
+                <div id="tc-checks-avans" style="margin-bottom: 16px;"></div>
+                <div class="table-container">
+                    <table id="tc-table-avans">
+                        <thead><tr id="tc-table-avans-head"></tr></thead>
+                        <tbody id="tc-table-avans-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Проверка объемов по маршрутам -->
+        <div class="card" style="margin-bottom: 16px;">
+            <div class="card-title" style="cursor: pointer;" onclick="tcToggleSection('tc-sec-km-routes')">
+                <i class="fas fa-route"></i>
+                5. Проверка объемов по маршрутам
+                <span id="tc-appendix-km-routes" style="font-size: 12px; font-weight: normal; color: #888; margin-left: 8px;"></span>
+                <i class="fas fa-chevron-up" id="tc-sec-km-routes-icon" style="margin-left: auto; font-size: 12px;"></i>
+            </div>
+            <div id="tc-sec-km-routes">
+                <div id="tc-checks-km-routes"></div>
+            </div>
+        </div>
+
+        <!-- 6. Сезонные графики -->
+        <div class="card" id="tc-seasonal-card" style="margin-bottom: 16px; display:none;">
+            <div class="card-title" style="cursor: pointer;" onclick="tcToggleSection('tc-sec-seasonal')">
+                <i class="fas fa-snowflake"></i>
+                6. Сезонные графики
+                <i class="fas fa-chevron-up" id="tc-sec-seasonal-icon" style="margin-left: auto; font-size: 12px;"></i>
+            </div>
+            <div id="tc-sec-seasonal">
+                <div id="tc-seasonal-content"></div>
+            </div>
+        </div>
+
+    </div><!-- /tc-results -->
+
+    <!-- Empty state -->
+    <div id="tc-empty" class="card">
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-table"></i></div>
+            <div>Выберите ДС и нажмите «Проверить»</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Tab: Calendar -->
+<div class="tab-content" id="tab-calendar">
+    <div class="two-columns">
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-calendar"></i>
+                Календарь
+                <select class="form-select" style="width: auto; margin-left: auto;" id="calendar-month">
+                    <option value="1">Январь</option>
+                    <option value="2">Февраль</option>
+                    <option value="3">Март</option>
+                    <option value="4">Апрель</option>
+                    <option value="5">Май</option>
+                    <option value="6">Июнь</option>
+                    <option value="7">Июль</option>
+                    <option value="8">Август</option>
+                    <option value="9">Сентябрь</option>
+                    <option value="10">Октябрь</option>
+                    <option value="11">Ноябрь</option>
+                    <option value="12">Декабрь</option>
+                </select>
+                <select class="form-select" style="width: auto;" id="calendar-year">
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026" selected>2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                </select>
+            </div>
+
+            <div class="calendar-grid" id="calendar-grid">
+                <!-- Calendar will be rendered here -->
+            </div>
+
+            <div style="margin-top: 12px; font-size: 12px; color: #8c8c8c;">
+                <span style="display: inline-block; width: 12px; height: 12px; background: #fff2f0; border-radius: 2px; margin-right: 4px;"></span> Праздник
+                <span style="display: inline-block; width: 12px; height: 12px; background: #fffbe6; border-radius: 2px; margin-left: 16px; margin-right: 4px;"></span> Переопределение
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-exchange-alt"></i>
+                Перераспределения дней
+                <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+                    <input type="text" class="form-input" id="override-route-filter" placeholder="Маршрут..." style="width: 130px;">
+                    <button class="btn btn-default" onclick="showRouteOverrides()" title="Все перераспределения маршрута по всем датам" style="flex-shrink: 0; padding: 10px; aspect-ratio: 1;">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="overrides-list">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Tab: Calculations -->
+<div class="tab-content" id="tab-calculations">
+    <div class="two-columns">
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-calculator"></i>
+                Расчет объемов
+            </div>
+
+            <div style="display: flex; gap: 12px; align-items: flex-end; margin-bottom: 24px;">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label class="form-label">Маршрут</label>
+                    <input type="text" class="form-input" id="calc-route" placeholder="Например: 120">
+                </div>
+                <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
+                    <label class="form-label">Период с</label>
+                    <input type="date" class="form-input" id="calc-date-from">
+                </div>
+                <div class="form-group" style="flex: 1.5; margin-bottom: 0;">
+                    <label class="form-label">Период по</label>
+                    <input type="date" class="form-input" id="calc-date-to">
+                </div>
+                <button class="btn btn-primary" onclick="calculateKm()" title="Рассчитать" style="flex-shrink: 0; padding: 10px; aspect-ratio: 1;">
+                    <i class="fas fa-play"></i>
+                </button>
+            </div>
+
+            <div class="card" id="calc-result" style="display: none; margin-top: 16px; box-shadow: none; border: 1px solid var(--border-color);">
+                <div class="card-title" style="font-size: 14px;">
+                    <i class="fas fa-chart-bar"></i>
+                    Результат расчёта
+                </div>
+                <div id="calc-result-content"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-file-excel"></i>
+                Выгрузка объёмов
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <div class="form-group">
+                    <label class="form-label">Контракт</label>
+                    <select class="form-select" id="export-contract">
+                        <option value="222">ГК 222</option>
+                        <option value="219">ГК 219</option>
+                        <option value="220">ГК 220</option>
+                        <option value="252">ГК 252</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px;">
+                <div class="form-group">
+                    <label class="form-label">Начало периода</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select class="form-select" id="export-start-month" style="flex: 1;">
+                            <option value="1">Январь</option>
+                            <option value="2" selected>Февраль</option>
+                            <option value="3">Март</option>
+                            <option value="4">Апрель</option>
+                            <option value="5">Май</option>
+                            <option value="6">Июнь</option>
+                            <option value="7">Июль</option>
+                            <option value="8">Август</option>
+                            <option value="9">Сентябрь</option>
+                            <option value="10">Октябрь</option>
+                            <option value="11">Ноябрь</option>
+                            <option value="12">Декабрь</option>
+                        </select>
+                        <select class="form-select" id="export-start-year" style="width: 90px;">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Конец периода</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select class="form-select" id="export-end-month" style="flex: 1;">
+                            <option value="1">Январь</option>
+                            <option value="2">Февраль</option>
+                            <option value="3">Март</option>
+                            <option value="4">Апрель</option>
+                            <option value="5">Май</option>
+                            <option value="6">Июнь</option>
+                            <option value="7" selected>Июль</option>
+                            <option value="8">Август</option>
+                            <option value="9">Сентябрь</option>
+                            <option value="10">Октябрь</option>
+                            <option value="11">Ноябрь</option>
+                            <option value="12">Декабрь</option>
+                        </select>
+                        <select class="form-select" id="export-end-year" style="width: 90px;">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028" selected>2028</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="export-routes-info" style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 6px; font-size: 13px; display: none;">
+                <strong>Маршруты:</strong> <span id="export-routes-count">0</span>
+                <div id="export-routes-list" style="margin-top: 8px; color: var(--text-secondary); word-break: break-word;"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <button class="btn btn-primary" onclick="exportMonthlyVolumes()" id="export-btn-km">
+                    <i class="fas fa-download"></i>
+                    Выгрузить км
+                </button>
+                <button class="btn btn-primary" onclick="exportRubVolumes()" id="export-btn-rub">
+                    <i class="fas fa-ruble-sign"></i>
+                    Выгрузить руб.
+                </button>
+                <button class="btn btn-primary" onclick="exportCombinedVolumes()" id="export-btn-combined">
+                    <i class="fas fa-file-excel"></i>
+                    Выгрузить км и руб.
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Stages -->
+<div class="tab-content" id="tab-stages">
+    <div class="card">
+        <div class="card-title" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-list-ol"></i>
+                Этапы исполнения контракта
+            </div>
+            <select class="form-select" id="stages-contract" style="width: auto;" onchange="loadStages()">
+                <option value="222">ГК 222</option>
+                <option value="219">ГК 219</option>
+                <option value="220">ГК 220</option>
+                <option value="252">ГК 252</option>
+            </select>
+            <button class="btn btn-default btn-sm" onclick="loadStages()" title="Обновить">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="recalculateStages()" title="Пересчитать все этапы">
+                <i class="fas fa-calculator"></i> Пересчитать
+            </button>
+            <span id="stages-status" style="font-size: 12px; color: var(--text-secondary);"></span>
+        </div>
+
+        <!-- Totals -->
+        <div class="stats-grid" style="margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="stat-label">Завершенные этапы</div>
+                <div class="stat-value" id="stages-historical-km">-</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">км (заблокировано)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Расчетные этапы</div>
+                <div class="stat-value info" id="stages-calculated-km">-</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">км</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Всего</div>
+                <div class="stat-value success" id="stages-total-km">-</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">км</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Этапов</div>
+                <div class="stat-value" id="stages-count">-</div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">№</th>
+                        <th style="width: 55px;">Год</th>
+                        <th style="width: 100px;">Период</th>
+                        <th style="width: 110px;">Дата начала</th>
+                        <th style="width: 110px;">Дата окончания</th>
+                        <th style="text-align: right; width: 140px;">Макс. км</th>
+                        <th style="text-align: right; width: 140px;">Цена, руб.</th>
+                        <th style="width: 140px;">Статус</th>
+                    </tr>
+                </thead>
+                <tbody id="stages-table">
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="loading"><div class="spinner"></div></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Acts -->
+<div class="tab-content" id="tab-acts">
+    <div class="two-columns">
+        <!-- Left: upload area -->
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-file-invoice"></i>
+                Загрузить акты приёмки (.docx)
+            </div>
+
+            <div class="upload-area" id="acts-upload-area">
+                <div class="upload-icon">
+                    <i class="fas fa-file-word"></i>
+                </div>
+                <div class="upload-text">Перетащите файлы сюда или нажмите для выбора</div>
+                <div class="upload-hint">Поддерживается формат .docx, можно выбрать несколько файлов</div>
+                <input type="file" id="acts-file-input" accept=".docx" multiple style="display: none;">
+            </div>
+
+            <!-- Selected files list -->
+            <div id="acts-files-list" style="margin-top: 12px; display: none;">
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">
+                    Выбранные файлы:
+                </div>
+                <div id="acts-files-names" style="font-size: 13px;"></div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+                <button class="btn btn-primary btn-lg" style="flex: 1;" onclick="parseActs()" id="acts-parse-btn" disabled>
+                    <i class="fas fa-search"></i>
+                    Разобрать акты
+                </button>
+                <button class="btn btn-default" onclick="actsReset()" id="acts-reset-btn" style="display:none;">
+                    <i class="fas fa-times"></i>
+                    Очистить
+                </button>
+            </div>
+        </div>
+
+        <!-- Right: parse status / hint -->
+        <div class="card" id="acts-status-card">
+            <div class="card-title">
+                <i class="fas fa-info-circle"></i>
+                Как это работает
+            </div>
+            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.7;">
+                <ol style="padding-left: 18px; margin: 0;">
+                    <li>Выберите один или несколько файлов актов приёмки (.docx)</li>
+                    <li>Нажмите <strong>«Разобрать акты»</strong> — система извлечёт номер контракта, период, объём км и сумму</li>
+                    <li>Для каждого акта будет показано сравнение с расчётными данными из вкладки <em>Этапы</em></li>
+                    <li>Нажмите <strong>«Подтвердить»</strong> рядом с нужным контрактом, чтобы обновить значения и закрыть этап</li>
+                </ol>
+                <div style="margin-top: 12px; padding: 10px 12px; background: var(--bg-secondary); border-radius: 6px; font-size: 12px;">
+                    <i class="fas fa-lock" style="color: var(--text-secondary);"></i>
+                    Исторические этапы (до февраля 2026) уже закрыты и не редактируются.
+                    Подтверждение доступно только для расчётных этапов.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results area -->
+    <div id="acts-results" style="margin-top: 16px;"></div>
+
+    <!-- History area -->
+    <div class="card" style="margin-top: 16px;">
+        <div class="card-title" style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-history"></i>
+            История загруженных актов
+            <button class="btn btn-default btn-sm" onclick="loadActsHistory()" title="Обновить" style="margin-left: auto;">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+        <div id="acts-history-content">
+            <div class="empty-state" style="padding: 24px 0;">
+                <div class="empty-icon"><i class="fas fa-history"></i></div>
+                <div>Загрузка...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Params Editor -->
+<div class="tab-content" id="tab-params-editor">
+    <div class="card">
+        <div class="card-title">
+            <i class="fas fa-sliders-h"></i> Редактирование параметров маршрутов
+        </div>
+        <div style="display: flex; gap: 16px; align-items: flex-end;">
+            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label class="form-label">Маршрут</label>
+                <input type="text" class="form-input" id="pe-route" placeholder="Например: 315">
+            </div>
+            <button class="btn btn-primary" onclick="peLoadParams()">
+                <i class="fas fa-search"></i> Загрузить параметры
+            </button>
+        </div>
+    </div>
+
+    <div id="pe-results"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title" id="modal-title">Заголовок</div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <!-- Content -->
+        </div>
+        <div class="modal-footer" id="modal-footer">
+            <button class="btn btn-default" onclick="closeModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    loadAgreements();
+    initCalendar();
+
+    // Set default dates
+    const today = new Date();
+    document.getElementById('calc-date-from').value = today.toISOString().split('T')[0];
+    document.getElementById('calc-date-to').value = today.toISOString().split('T')[0];
+    document.getElementById('calendar-month').value = today.getMonth() + 1;
+});
+
+// Format number with spaces
+function formatNumber(num) {
+    if (num === null || num === undefined) return '-';
+    return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Convert quarter notation (Q1, Q2, Q3, Q4) to Roman numerals
+function formatPeriod(period) {
+    if (!period) return '-';
+    
+    // Map Q1, Q2, Q3, Q4 to Roman numerals
+    const quarterMap = {
+        'Q1': 'I квартал',
+        'Q2': 'II квартал',
+        'Q3': 'III квартал',
+        'Q4': 'IV квартал'
+    };
+    
+    // Check if period starts with Q followed by a digit
+    if (period.startsWith('Q')) {
+        const quarter = period.substring(0, 2); // Get "Q1", "Q2", etc.
+        if (quarterMap[quarter]) {
+            return quarterMap[quarter];
+        }
+    }
+    
+    // Return original if no match
+    return period;
+}
+
+// Load stages
+async function loadStages() {
+    const contract = document.getElementById('stages-contract').value;
+    const tbody = document.getElementById('stages-table');
+
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="loading"><div class="spinner"></div></div></td></tr>';
+
+    try {
+        const response = await fetch(`/api/summary/${contract}/stages`);
+        const data = await response.json();
+
+        // Update totals
+        document.getElementById('stages-historical-km').textContent = formatNumber(data.totals.historical_km);
+        document.getElementById('stages-calculated-km').textContent = formatNumber(data.totals.calculated_km);
+        document.getElementById('stages-total-km').textContent = formatNumber(data.totals.total_km);
+        document.getElementById('stages-count').textContent = data.stages_count;
+
+        // Render table
+        if (data.stages.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Нет данных</td></tr>';
+            return;
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+
+        tbody.innerHTML = data.stages.map(stage => {
+            const statusBadge = getStatusBadge(stage);
+            const isPast = stage.date_to < today;
+            const canClose = isPast && stage.status !== 'closed';
+            const canEditClosed = stage.status === 'closed';
+
+            return `
+            <tr class="${stage.status === 'closed' ? 'row-locked' : ''}" data-stage="${stage.stage}" data-status="${stage.status}">
+                <td style="cursor: pointer;" onclick="showStageDetails('${contract}', ${stage.stage})">${stage.stage}</td>
+                <td style="cursor: pointer;" onclick="showStageDetails('${contract}', ${stage.stage})">${stage.year}</td>
+                <td style="cursor: pointer;" onclick="showStageDetails('${contract}', ${stage.stage})">${formatPeriod(stage.period)}</td>
+                <td style="cursor: pointer;" onclick="showStageDetails('${contract}', ${stage.stage})">${stage.date_from}</td>
+                <td style="cursor: pointer;" onclick="showStageDetails('${contract}', ${stage.stage})">${stage.date_to}</td>
+                <td style="text-align: right; font-family: monospace;">${formatNumber(stage.max_km)}</td>
+                <td style="text-align: right; font-family: monospace; color: var(--text-secondary);">${stage.price ? formatNumber(stage.price) : '-'}</td>
+                <td>
+                    ${statusBadge}
+                    ${canClose ? `
+                        <button class="btn btn-sm btn-warning" onclick="openCloseStageModal('${contract}', ${stage.stage}, ${stage.max_km}, ${stage.price || 0}, false)"
+                            title="Закрыть этап" style="margin-left: 4px; padding: 2px 6px;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    ` : ''}
+                    ${canEditClosed ? `
+                        <button class="btn btn-sm btn-default" onclick="openCloseStageModal('${contract}', ${stage.stage}, ${stage.max_km}, ${stage.price || 0}, true)"
+                            title="Изменить значения" style="margin-left: 4px; padding: 2px 6px;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `}).join('');
+
+        // Проверяем статус после загрузки
+        checkStagesStatus();
+
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty-state error">Ошибка: ${err.message}</td></tr>`;
+    }
+}
+
+// Show stage details
+async function showStageDetails(contract, stageNumber) {
+    try {
+        const response = await fetch(`/api/summary/${contract}/stage/${stageNumber}`);
+        const stage = await response.json();
+
+        let content = `
+            <div style="display: flex; gap: 32px; margin-bottom: 24px; font-size: 14px;">
+                <div><span style="color: var(--text-secondary);">Период:</span> ${formatPeriod(stage.period)} ${stage.year}</div>
+                <div><span style="color: var(--text-secondary);">Даты:</span> ${stage.date_from} — ${stage.date_to}</div>
+                <div><span style="color: var(--text-secondary);">Всего км:</span> <strong>${formatNumber(stage.max_km)}</strong></div>
+            </div>
+        `;
+
+
+        if (stage.is_locked) {
+            content += `<div class="alert alert-warning"><i class="fas fa-lock"></i> Исторический этап — данные заблокированы</div>`;
+        }
+
+        if (stage.routes && stage.routes.length > 0) {
+            content += `
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Маршрут</th>
+                            <th style="text-align: right;">Прямое, км</th>
+                            <th style="text-align: right;">Обратное, км</th>
+                            <th style="text-align: right;">Всего, км</th>
+                            <th style="text-align: right; width: 80px;">Рейсов</th>
+                            <th style="width: 40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            stage.routes.forEach((r, idx) => {
+                const hasSegments = r.segments && r.segments.length > 0;
+                content += `
+                    <tr class="route-row ${hasSegments ? 'has-segments' : ''}" ${hasSegments ? `onclick="toggleRouteSegments(${idx})" style="cursor: pointer;"` : ''}>
+                        <td style="font-weight: 600;">${r.route}</td>
+                        <td style="text-align: right;">${formatNumber(r.forward_km)}</td>
+                        <td style="text-align: right;">${formatNumber(r.reverse_km)}</td>
+                        <td style="text-align: right; font-weight: 600;">${formatNumber(r.total_km)}</td>
+                        <td style="text-align: right;">${r.total_trips}</td>
+                        <td style="text-align: center;">
+                            ${hasSegments ? `<i class="fas fa-chevron-down" id="chevron-${idx}" style="color: var(--text-secondary); font-size: 12px;"></i>` : ''}
+                        </td>
+                    </tr>
+                    ${hasSegments ? `
+                    <tr id="segments-${idx}" class="segments-row" style="display: none;">
+                        <td colspan="6" style="padding: 0; background: var(--bg-secondary);">
+                            <div style="padding: 16px;">
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                                    <i class="fas fa-database"></i> Источники данных для расчёта
+                                </div>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Период</th>
+                                            <th>Источник</th>
+                                            <th style="text-align: right;">Протяж. НП</th>
+                                            <th style="text-align: right;">Протяж. КП</th>
+                                            <th style="text-align: right;">Дней</th>
+                                            <th style="text-align: right;">Рейсов</th>
+                                            <th style="text-align: right;">Км</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${r.segments.map(s => `
+                                            <tr>
+                                                <td>${s.route_params_id || '-'}</td>
+                                                <td>${formatDateRange(s.date_from, s.date_to)}</td>
+                                                <td>${s.source || '—'}</td>
+                                                <td style="text-align: right;">${s.length_forward}</td>
+                                                <td style="text-align: right;">${s.length_reverse}</td>
+                                                <td style="text-align: right;">${s.days_count}</td>
+                                                <td style="text-align: right;">${s.forward_trips + s.reverse_trips}</td>
+                                                <td style="text-align: right; font-weight: 600;">${formatNumber(s.total_km)}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    ` : ''}
+                `;
+            });
+
+            content += `
+                    </tbody>
+                    <tfoot>
+                        <tr style="font-weight: 600; border-top: 2px solid var(--border-color);">
+                            <td>ИТОГО (${stage.routes_count} маршр.)</td>
+                            <td></td>
+                            <td></td>
+                            <td style="text-align: right;">${formatNumber(stage.max_km)}</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+        } else if (!stage.is_locked) {
+            content += `<div class="alert alert-info">Нет данных о маршрутах</div>`;
+        }
+
+        document.getElementById('modal-title').textContent = `Этап ${stage.stage}: ${formatPeriod(stage.period)} ${stage.year}`;
+        document.getElementById('modal-body').innerHTML = content;
+        document.getElementById('modal').classList.add('active');
+
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+// Format date range for display
+function formatDateRange(dateFrom, dateTo) {
+    const from = dateFrom.split('-');
+    const to = dateTo.split('-');
+    // Format: DD.MM - DD.MM or DD.MM if same
+    const fromStr = `${from[2]}.${from[1]}`;
+    const toStr = `${to[2]}.${to[1]}`;
+    return fromStr === toStr ? fromStr : `${fromStr} — ${toStr}`;
+}
+
+// Toggle route segments visibility
+function toggleRouteSegments(idx) {
+    const segments = document.getElementById(`segments-${idx}`);
+    const chevron = document.getElementById(`chevron-${idx}`);
+
+    if (segments.style.display === 'none') {
+        segments.style.display = 'table-row';
+        chevron.classList.remove('fa-chevron-down');
+        chevron.classList.add('fa-chevron-up');
+    } else {
+        segments.style.display = 'none';
+        chevron.classList.remove('fa-chevron-up');
+        chevron.classList.add('fa-chevron-down');
+    }
+}
+
+// Recalculate stages
+async function recalculateStages() {
+    const contract = document.getElementById('stages-contract').value;
+
+    if (!confirm(`Пересчитать все этапы для ГК ${contract}? Это может занять некоторое время.`)) {
+        return;
+    }
+
+    showLoadingOverlay('Пересчёт этапов контракта...');
+
+    try {
+        const response = await fetch(`/api/summary/${contract}/recalculate`, { method: 'POST' });
+        const result = await response.json();
+
+        hideLoadingOverlay();
+
+        if (result.success) {
+            showAlert('success', result.message || 'Этапы пересчитаны');
+            loadStages();
+        } else {
+            showAlert('error', result.detail || 'Ошибка пересчёта');
+        }
+    } catch (error) {
+        hideLoadingOverlay();
+        showAlert('error', 'Ошибка: ' + error.message);
+    }
+}
+
+// Check stages calculation status
+async function checkStagesStatus() {
+    const contract = document.getElementById('stages-contract').value;
+    const statusEl = document.getElementById('stages-status');
+
+    try {
+        const response = await fetch(`/api/summary/${contract}/status`);
+        const result = await response.json();
+
+        if (result.has_calculated_stages) {
+            statusEl.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success-color);"></i> Расчёт сохранён';
+        } else {
+            statusEl.innerHTML = '<i class="fas fa-info-circle" style="color: var(--warning-color);"></i> Требуется пересчёт';
+        }
+    } catch (error) {
+        statusEl.textContent = '';
+    }
+}
+
+// Get status badge HTML
+function getStatusBadge(stage) {
+    if (stage.status === 'closed') {
+        return '<span class="badge badge-default"><i class="fas fa-lock"></i> Закрыт</span>';
+    }
+    return '<span class="badge badge-success"><i class="fas fa-database"></i> Сохранён</span>';
+}
+
+// Current stage being edited
+let currentEditStage = null;
+
+// Open modal to close/edit stage
+function openCloseStageModal(contract, stageNumber, currentKm, currentPrice, isAlreadyClosed = false) {
+    currentEditStage = { contract, stageNumber };
+
+    const title = isAlreadyClosed ? `Редактировать этап ${stageNumber}` : `Закрыть этап ${stageNumber}`;
+    const hint = isAlreadyClosed
+        ? 'Измените значения закрытого этапа.'
+        : 'Введите фактические значения для закрытия этапа. После закрытия этап не будет пересчитываться.';
+    const btnLabel = isAlreadyClosed ? 'Сохранить' : 'Сохранить и закрыть';
+
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = `
+        <p style="margin-bottom: 16px; color: var(--text-secondary);">${hint}</p>
+        <div class="form-group">
+            <label class="form-label">Макс. км</label>
+            <input type="text" class="form-input" id="close-stage-km" value="${currentKm.toFixed(2)}" style="font-family: monospace;">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Цена, руб.</label>
+            <input type="text" class="form-input" id="close-stage-price" value="${currentPrice ? currentPrice.toFixed(2) : ''}" style="font-family: monospace;">
+        </div>
+    `;
+    const resetBtnHtml = isAlreadyClosed ? `
+        <button class="btn btn-warning" onclick="resetStageToCalculated()" title="Пересчитать этап заново и снять статус Закрыт">
+            <i class="fas fa-undo"></i> Сделать расчётным
+        </button>
+    ` : '';
+
+    document.getElementById('modal-footer').innerHTML = `
+        <button class="btn btn-default" onclick="closeModal()">Отмена</button>
+        ${resetBtnHtml}
+        <button class="btn btn-success" onclick="submitCloseStage()">
+            <i class="fas fa-check"></i> ${btnLabel}
+        </button>
+    `;
+    document.getElementById('modal').classList.add('active');
+}
+
+// Submit close stage
+async function submitCloseStage() {
+    if (!currentEditStage) return;
+
+    const kmInput = document.getElementById('close-stage-km');
+    const priceInput = document.getElementById('close-stage-price');
+
+    const totalKm = kmInput ? parseFloat(kmInput.value.replace(/\s/g, '').replace(',', '.')) : null;
+    const totalPrice = priceInput && priceInput.value ? parseFloat(priceInput.value.replace(/\s/g, '').replace(',', '.')) : null;
+
+    if (totalKm === null || isNaN(totalKm)) {
+        showAlert('error', 'Введите корректное значение км');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/summary/${currentEditStage.contract}/stage/${currentEditStage.stageNumber}/close`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                total_km: totalKm,
+                total_price: totalPrice
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            closeModal();
+            showAlert('success', `Этап ${currentEditStage.stageNumber} закрыт`);
+            loadStages();
+        } else {
+            showAlert('error', result.detail || 'Ошибка закрытия этапа');
+        }
+    } catch (error) {
+        showAlert('error', 'Ошибка: ' + error.message);
+    }
+
+    currentEditStage = null;
+}
+
+// Reset closed stage back to calculated (SAVED)
+async function resetStageToCalculated() {
+    if (!currentEditStage) return;
+
+    const { contract, stageNumber } = currentEditStage;
+
+    const footerBtns = document.querySelectorAll('#modal-footer button');
+    footerBtns.forEach(b => b.disabled = true);
+
+    try {
+        const response = await fetch(`/api/summary/${contract}/stage/${stageNumber}/reset`, {
+            method: 'POST',
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            closeModal();
+            showAlert('success', `Этап ${stageNumber} переведён в расчётный статус (${result.total_km != null ? result.total_km.toLocaleString('ru-RU', {maximumFractionDigits: 2}) + ' км' : ''})`);
+            loadStages();
+        } else {
+            showAlert('error', result.detail || 'Ошибка сброса этапа');
+            footerBtns.forEach(b => b.disabled = false);
+        }
+    } catch (error) {
+        showAlert('error', 'Ошибка: ' + error.message);
+        footerBtns.forEach(b => b.disabled = false);
+    }
+
+    currentEditStage = null;
+}
+
+// =====================================================================
+// Acts tab
+// =====================================================================
+
+let actsSelectedFiles = [];
+let actsParseResults = [];
+
+const actsUploadArea = document.getElementById('acts-upload-area');
+const actsFileInput = document.getElementById('acts-file-input');
+
+actsUploadArea.addEventListener('click', () => actsFileInput.click());
+
+actsUploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    actsUploadArea.classList.add('dragover');
+});
+actsUploadArea.addEventListener('dragleave', () => actsUploadArea.classList.remove('dragover'));
+actsUploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    actsUploadArea.classList.remove('dragover');
+    actsSetFiles(Array.from(e.dataTransfer.files));
+});
+actsFileInput.addEventListener('change', () => {
+    actsSetFiles(Array.from(actsFileInput.files));
+});
+
+function actsSetFiles(files) {
+    actsSelectedFiles = files.filter(f => f.name.toLowerCase().endsWith('.docx'));
+    const ignored = files.length - actsSelectedFiles.length;
+
+    const listDiv = document.getElementById('acts-files-list');
+    const namesDiv = document.getElementById('acts-files-names');
+    const parseBtn = document.getElementById('acts-parse-btn');
+    const resetBtn = document.getElementById('acts-reset-btn');
+
+    if (actsSelectedFiles.length === 0) {
+        listDiv.style.display = 'none';
+        parseBtn.disabled = true;
+        resetBtn.style.display = 'none';
+        return;
+    }
+
+    namesDiv.innerHTML = actsSelectedFiles.map(f => `
+        <div style="display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--border-color);">
+            <i class="fas fa-file-word" style="color:#2b579a;"></i>
+            <span>${f.name}</span>
+            <span style="color:var(--text-secondary); font-size:11px; margin-left:auto;">${formatFileSize(f.size)}</span>
+        </div>
+    `).join('') + (ignored > 0 ? `<div style="color:var(--warning-color);font-size:12px;margin-top:4px;">${ignored} файл(а) пропущено (не .docx)</div>` : '');
+
+    listDiv.style.display = 'block';
+    parseBtn.disabled = false;
+    resetBtn.style.display = '';
+
+    // Clear previous results
+    document.getElementById('acts-results').innerHTML = '';
+    actsParseResults = [];
+}
+
+function actsReset() {
+    actsSelectedFiles = [];
+    actsParseResults = [];
+    actsFileInput.value = '';
+    document.getElementById('acts-files-list').style.display = 'none';
+    document.getElementById('acts-files-names').innerHTML = '';
+    document.getElementById('acts-parse-btn').disabled = true;
+    document.getElementById('acts-reset-btn').style.display = 'none';
+    document.getElementById('acts-results').innerHTML = '';
+}
+
+async function parseActs() {
+    if (actsSelectedFiles.length === 0) return;
+
+    const parseBtn = document.getElementById('acts-parse-btn');
+    const resultsDiv = document.getElementById('acts-results');
+
+    parseBtn.disabled = true;
+    parseBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Разбор...';
+    resultsDiv.innerHTML = '<div class="loading" style="padding:24px;"><div class="spinner"></div></div>';
+
+    try {
+        const formData = new FormData();
+        for (const f of actsSelectedFiles) {
+            formData.append('files', f, f.name);
+        }
+
+        const resp = await fetch('/api/acts/parse', { method: 'POST', body: formData });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+
+        actsParseResults = await resp.json();
+        actsRenderResults(actsParseResults);
+
+    } catch (e) {
+        resultsDiv.innerHTML = `<div class="alert alert-error"><i class="fas fa-times-circle"></i> Ошибка: ${e.message}</div>`;
+    } finally {
+        parseBtn.disabled = false;
+        parseBtn.innerHTML = '<i class="fas fa-search"></i> Разобрать акты';
+    }
+}
+
+function actsRenderResults(results) {
+    const container = document.getElementById('acts-results');
+
+    if (results.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state">Нет результатов</div></div>';
+        return;
+    }
+
+    container.innerHTML = results.map((item, idx) => {
+        // Error case
+        if (item.error && !item.act_data) {
+            return `
+            <div class="card" style="margin-bottom:16px; border-left:4px solid #ff4d4f;">
+                <div class="card-title" style="color:#ff4d4f;">
+                    <i class="fas fa-times-circle"></i>
+                    ${item.filename}
+                </div>
+                <div class="alert alert-error" style="margin:0;">${item.error}</div>
+            </div>`;
+        }
+
+        const act = item.act_data;
+        const stage = item.stage;
+        const contractLabel = item.contract_number ? `ГК ${item.contract_number}` : '—';
+        const period = act ? `${act.period_name} ${act.period_year}` : '—';
+
+        // Parse error but partial data
+        if (item.error) {
+            return `
+            <div class="card" style="margin-bottom:16px; border-left:4px solid #faad14;">
+                <div class="card-title">
+                    <i class="fas fa-exclamation-triangle" style="color:#d48806;"></i>
+                    ${contractLabel} — ${period}
+                    <span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">${item.filename}</span>
+                </div>
+                <div class="alert alert-warning" style="margin:0;">${item.error}</div>
+            </div>`;
+        }
+
+        if (!act) return '';
+
+        // Comparison
+        const fmtRub = v => v != null ? v.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '—';
+
+        const diffPrice = (stage && stage.calculated_price != null) ? (act.total_price - stage.calculated_price) : null;
+
+        const diffPriceHtml = diffPrice != null ? `
+            <span style="color:${Math.abs(diffPrice) < 0.01 ? '#52c41a' : '#fa8c16'}; font-size:12px; margin-left:6px;">
+                ${diffPrice >= 0 ? '+' : ''}${fmtRub(diffPrice)}
+            </span>` : '';
+
+        // Stage info
+        let stageHtml = '';
+        let confirmBtnHtml = '';
+
+        if (!item.contract_found) {
+            stageHtml = '<div class="alert alert-warning" style="margin-bottom:0;">Контракт не найден в БД</div>';
+        } else if (!stage) {
+            stageHtml = '<div class="alert alert-warning" style="margin-bottom:0;">Этап для указанного периода не найден</div>';
+        } else {
+            const isLocked = stage.is_locked;
+            const statusText = isLocked
+                ? '<span class="badge badge-default"><i class="fas fa-lock"></i> Закрыт</span>'
+                : '<span class="badge badge-success"><i class="fas fa-database"></i> Сохранён</span>';
+
+            stageHtml = `
+            <div style="overflow-x:auto;">
+              <table style="width:100%; font-size:13px;">
+                <thead>
+                  <tr>
+                    <th style="text-align:left; width:180px;"></th>
+                    <th style="text-align:right;">Из акта</th>
+                    <th style="text-align:right;">Расчётное</th>
+                    <th style="text-align:right;">Разница</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Сумма к оплате, руб.</td>
+                    <td style="text-align:right; font-family:monospace; font-weight:600;">${fmtRub(act.total_price)}</td>
+                    <td style="text-align:right; font-family:monospace; color:var(--text-secondary);">${fmtRub(stage.calculated_price)}</td>
+                    <td style="text-align:right;">${diffPrice != null ? `<span style="color:${Math.abs(diffPrice)<0.01?'#52c41a':'#fa8c16'}">${diffPrice>=0?'+':''}${fmtRub(diffPrice)}</span>` : '—'}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top:10px; font-size:12px; color:var(--text-secondary);">
+                Этап №${stage.stage} · ${stage.date_from} — ${stage.date_to} · ${statusText}
+            </div>`;
+
+            if (isLocked) {
+                confirmBtnHtml = `
+                <button class="btn btn-default" disabled title="Исторический этап — не редактируется">
+                    <i class="fas fa-lock"></i> Закрыт (исторический)
+                </button>`;
+            } else {
+                confirmBtnHtml = `
+                <button class="btn btn-success" onclick="confirmAct(${idx})">
+                    <i class="fas fa-check"></i> Подтвердить
+                </button>`;
+            }
+        }
+
+        // Border color by contract
+        const contractColors = {'219':'#1677ff','220':'#52c41a','222':'#722ed1','252':'#fa8c16'};
+        const borderColor = contractColors[item.contract_number] || '#d9d9d9';
+
+        return `
+        <div class="card" style="margin-bottom:16px; border-left:4px solid ${borderColor};" id="acts-result-${idx}">
+            <div class="card-title" style="flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-file-invoice"></i>
+                    <strong>${contractLabel}</strong>
+                    <span>— ${period}</span>
+                </div>
+                <span style="font-size:11px; color:var(--text-secondary); margin-left:auto;">${item.filename}</span>
+            </div>
+
+            ${stageHtml}
+
+            ${confirmBtnHtml ? `<div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+                ${confirmBtnHtml}
+                <span id="acts-confirm-status-${idx}" style="font-size:12px; color:var(--text-secondary);"></span>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function confirmAct(idx) {
+    const item = actsParseResults[idx];
+    if (!item || !item.stage || item.stage.is_locked) return;
+
+    const btn = document.querySelector(`#acts-result-${idx} .btn-success`);
+    const statusEl = document.getElementById(`acts-confirm-status-${idx}`);
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+    }
+    if (statusEl) statusEl.textContent = '';
+
+    try {
+        const payload = [{
+            contract_number: item.contract_number,
+            stage_number: item.stage.stage,
+            total_price: item.act_data.total_price,
+        }];
+
+        const resp = await fetch('/api/acts/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await resp.json();
+        const result = data.results && data.results[0];
+
+        if (result && result.success) {
+            if (btn) btn.innerHTML = '<i class="fas fa-check-circle"></i> Подтверждено';
+            if (statusEl) statusEl.innerHTML = '<span style="color:#52c41a;">Этап закрыт</span>';
+            // Update local state so button stays disabled
+            actsParseResults[idx].stage.is_locked = true;
+            actsParseResults[idx].stage.status = 'closed';
+            loadActsHistory();
+        } else {
+            const err = result ? result.error : 'Неизвестная ошибка';
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Подтвердить';
+            }
+            if (statusEl) statusEl.innerHTML = `<span style="color:#ff4d4f;">${err}</span>`;
+        }
+    } catch (e) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Подтвердить';
+        }
+        if (statusEl) statusEl.innerHTML = `<span style="color:#ff4d4f;">Ошибка: ${e.message}</span>`;
+    }
+}
+
+async function loadActsHistory() {
+    const el = document.getElementById('acts-history-content');
+    if (!el) return;
+    el.innerHTML = '<div class="loading" style="padding: 16px 0;"><div class="spinner"></div></div>';
+
+    try {
+        const resp = await fetch('/api/acts/history');
+        const data = await resp.json();
+
+        if (!data.length) {
+            el.innerHTML = '<div class="empty-state" style="padding: 24px 0;"><div>Нет подтверждённых актов</div></div>';
+            return;
+        }
+
+        const rows = data.map(r => `
+            <tr>
+                <td>ГК ${r.contract_number}</td>
+                <td>${r.period_name} ${r.year}</td>
+                <td style="text-align:center;">${r.stage}</td>
+                <td style="text-align:right;">${formatNumber(r.calculated_km)}</td>
+                <td style="text-align:right; font-weight:600;">${formatNumber(r.total_price)}</td>
+                <td style="text-align:center;">
+                    <span class="badge badge-closed"><i class="fas fa-lock"></i> Закрыт</span>
+                </td>
+            </tr>`).join('');
+
+        el.innerHTML = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Контракт</th>
+                        <th>Период</th>
+                        <th style="text-align:center;">Этап</th>
+                        <th style="text-align:right;">Км (расчёт)</th>
+                        <th style="text-align:right;">Сумма из акта, ₽</th>
+                        <th style="text-align:center;">Статус</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    } catch (e) {
+        el.innerHTML = `<div style="color:#ff4d4f; padding:12px;">Ошибка загрузки истории: ${e.message}</div>`;
+    }
+}
+
+// ============================================================
+// Вкладка «Редактирование параметров»
+// ============================================================
+
+// Сезоны для отображения
+const PE_SEASON_LABELS = {
+    all_year: 'Круглогодично',
+    winter: 'Зима',
+    summer: 'Лето',
+};
+
+
+async function peLoadParams() {
+    const route = document.getElementById('pe-route').value.trim();
+    const resultsEl = document.getElementById('pe-results');
+
+    if (!route) {
+        resultsEl.innerHTML = '<div class="alert alert-error">Укажите маршрут</div>';
+        return;
+    }
+
+    resultsEl.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
+
+    try {
+        const res = await fetch(`/api/params-editor/params?route=${encodeURIComponent(route)}`);
+        if (!res.ok) {
+            const err = await res.json();
+            resultsEl.innerHTML = `<div class="alert alert-error">${err.detail || 'Ошибка загрузки'}</div>`;
+            return;
+        }
+        const data = await res.json();
+        if (!data.params || data.params.length === 0) {
+            resultsEl.innerHTML = '<div class="alert alert-info">Параметры для этого маршрута не найдены</div>';
+            return;
+        }
+        peRenderTable(data.params);
+    } catch (e) {
+        resultsEl.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+// Вычисляет эффективный Период по для каждого параметра:
+// внутри группы (контракт, маршрут, сезон) запись без date_to действует
+// до дня перед следующей записью той же группы — ровно как в расчётах.
+function peComputeEffectiveDates(params) {
+    const groups = {};
+    params.forEach(p => {
+        const key = `${p.contract_number}|${p.route}|${p.season}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+    });
+    Object.values(groups).forEach(group => {
+        group.sort((a, b) => a.date_from.localeCompare(b.date_from));
+        group.forEach((p, i) => {
+            if (p.date_to === null && i < group.length - 1) {
+                const nextFrom = group[i + 1].date_from;
+                const next = new Date(nextFrom);
+                next.setDate(next.getDate() - 1);
+                const computed = next.toISOString().split('T')[0];
+                p.effective_date_to = computed < p.date_from ? p.date_from : computed;
+            } else {
+                p.effective_date_to = p.date_to; // null или реальная дата из БД
+            }
+        });
+    });
+}
+
+function peParamRowHtml(p) {
+    let dateToCeil;
+    if (p.date_to) {
+        // реальная дата из БД
+        dateToCeil = p.date_to;
+    } else if (p.effective_date_to) {
+        // вычисленная — показываем курсивом с подсказкой
+        dateToCeil = `<span style="font-style:italic;color:var(--text-secondary);" title="Вычислено по следующей записи">${p.effective_date_to}</span>`;
+    } else {
+        dateToCeil = '<span style="color:var(--text-secondary);">—</span>';
+    }
+    return `
+        <tr>
+            <td>${p.route}</td>
+            <td>${p.contract_number}</td>
+            <td>${p.date_from}</td>
+            <td>${dateToCeil}</td>
+            <td>${PE_SEASON_LABELS[p.season] || p.season}</td>
+            <td>${p.source_appendix || '<span style="color:var(--text-secondary);">—</span>'}</td>
+            <td style="text-align:right;">${p.length_forward ?? '—'}</td>
+            <td style="text-align:right;">${p.length_reverse ?? '—'}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-default" style="padding:4px 8px; font-size:12px;" title="Редактировать"
+                    onclick="peOpenEdit(${p.id})">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button class="btn btn-danger" style="padding:4px 8px; font-size:12px; margin-left:2px;" title="Удалить"
+                    onclick="peDeleteParams(${p.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+}
+
+function peParamTableHtml(rows, title, titleStyle) {
+    if (rows.length === 0) return '';
+    const thead = `
+        <thead>
+            <tr>
+                <th style="width:70px;">Маршрут</th>
+                <th style="width:60px;">ГК</th>
+                <th>Период с</th>
+                <th>Период по</th>
+                <th>Сезон</th>
+                <th>Источник</th>
+                <th style="text-align:right;">Протяж. НП</th>
+                <th style="text-align:right;">Протяж. КП</th>
+                <th style="width:90px;"></th>
+            </tr>
+        </thead>
+    `;
+    return `
+        <div class="card" style="margin-top: 16px;">
+            <div class="card-title" style="${titleStyle}">${title} <span style="font-weight:400;font-size:13px;">(${rows.length})</span></div>
+            <table>${thead}<tbody>${rows.map(peParamRowHtml).join('')}</tbody></table>
+        </div>
+    `;
+}
+
+function peRenderTable(params) {
+    const resultsEl = document.getElementById('pe-results');
+
+    params = [...params].sort((a, b) => a.date_from.localeCompare(b.date_from));
+    peComputeEffectiveDates(params);
+
+    window._peParamsCache = {};
+    params.forEach(p => { window._peParamsCache[p.id] = p; });
+
+    const active = params.filter(p => p.is_active);
+    const inactive = params.filter(p => !p.is_active);
+
+    resultsEl.innerHTML =
+        peParamTableHtml(active,   '<i class="fas fa-check-circle" style="color:#52c41a;"></i> Активные параметры',   '') +
+        peParamTableHtml(inactive, '<i class="fas fa-archive"      style="color:var(--text-secondary);"></i> Неактивные параметры', 'color:var(--text-secondary);');
+}
+
+function peOpenEdit(paramId) {
+    const p = window._peParamsCache[paramId];
+    if (!p) return;
+
+    const seasonOptions = Object.entries(PE_SEASON_LABELS).map(([val, label]) =>
+        `<option value="${val}" ${p.season === val ? 'selected' : ''}>${label}</option>`
+    ).join('');
+
+    const bodyHtml = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px;">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Маршрут</label>
+                <input type="text" class="form-input" id="pe-edit-route" value="${p.route}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Период с</label>
+                <input type="date" class="form-input" id="pe-edit-date-from" value="${p.date_from}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Период по</label>
+                <input type="date" class="form-input" id="pe-edit-date-to" value="${p.date_to || ''}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Сезон</label>
+                <select class="form-select" id="pe-edit-season">${seasonOptions}</select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Источник</label>
+                <input type="text" class="form-input" id="pe-edit-source" value="${p.source_appendix || ''}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Протяж. НП, км</label>
+                <input type="number" step="0.01" class="form-input" id="pe-edit-fwd" value="${p.length_forward ?? ''}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Протяж. КП, км</label>
+                <input type="number" step="0.01" class="form-input" id="pe-edit-rev" value="${p.length_reverse ?? ''}">
+            </div>
+        </div>
+        <div id="pe-edit-status"></div>
+        <div id="pe-trips-container"></div>
+    `;
+
+    document.getElementById('modal-title').textContent = `Редактирование параметров ID ${p.id} — маршрут ${p.route}`;
+    document.getElementById('modal-body').innerHTML = bodyHtml;
+    document.getElementById('modal-footer').innerHTML = `
+        <button class="btn btn-primary" onclick="peSaveParams(${p.id})">
+            <i class="fas fa-save"></i> Сохранить параметры
+        </button>
+        <button class="btn btn-default" onclick="closeModal()">Закрыть</button>
+    `;
+    document.getElementById('modal').classList.add('active');
+    peRenderTrips(p.id);
+}
+
+function peRenderTrips(paramId) {
+    const p = window._peParamsCache[paramId];
+    const container = document.getElementById('pe-trips-container');
+    if (!container) return;
+
+    const tripRowHtml = t => `
+        <tr id="pe-trip-row-${t.id}">
+            <td>
+                <input type="text" class="form-input"
+                    id="pe-trip-name-${t.id}" value="${t.day_type_name}">
+            </td>
+            <td style="text-align:right;">
+                <input type="number" class="form-input" style="width:70px;text-align:right;"
+                    id="pe-trip-fwd-${t.id}" value="${t.forward_number}">
+            </td>
+            <td style="text-align:right;">
+                <input type="number" class="form-input" style="width:70px;text-align:right;"
+                    id="pe-trip-rev-${t.id}" value="${t.reverse_number}">
+            </td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;" title="Сохранить"
+                    onclick="peSaveTrip(${t.id}, ${paramId})">
+                    <i class="fas fa-save"></i>
+                </button>
+                <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;margin-left:2px;" title="Удалить"
+                    onclick="peDeleteTrip(${t.id}, ${paramId})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+
+    container.innerHTML = `
+        <div style="margin-top:16px;">
+            <div style="font-weight:600; margin-bottom:8px;"><i class="fas fa-route"></i> Рейсы по типам дней</div>
+            <table style="font-size:13px;">
+                <thead>
+                    <tr>
+                        <th>Тип дня</th>
+                        <th style="text-align:right;">От НП</th>
+                        <th style="text-align:right;">От КП</th>
+                        <th style="width:90px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="pe-trips-tbody">
+                    ${p && p.trips.length > 0 ? p.trips.map(tripRowHtml).join('') : ''}
+                </tbody>
+            </table>
+            <button class="btn btn-default" style="margin-top:10px;font-size:12px;"
+                onclick="peShowAddTripRow(${paramId})">
+                <i class="fas fa-plus"></i> Добавить тип дня
+            </button>
+        </div>
+    `;
+}
+
+function peShowAddTripRow(paramId) {
+    const tbody = document.getElementById('pe-trips-tbody');
+    if (!tbody || document.getElementById('pe-trip-new-row')) return;
+
+    const row = document.createElement('tr');
+    row.id = 'pe-trip-new-row';
+    row.innerHTML = `
+        <td>
+            <input type="text" class="form-input"
+                id="pe-new-trip-name" placeholder="Тип дня" list="pe-day-types-list">
+            <datalist id="pe-day-types-list">
+                <option value="Рабочие дни">
+                <option value="Рабочие и субботние дни">
+                <option value="Субботние дни">
+                <option value="Воскресные и праздничные дни">
+                <option value="Рабочие, выходные и праздничные дни">
+                <option value="Пятница">
+            </datalist>
+        </td>
+        <td style="text-align:right;">
+            <input type="number" class="form-input" style="width:70px;text-align:right;"
+                id="pe-new-trip-fwd" value="0">
+        </td>
+        <td style="text-align:right;">
+            <input type="number" class="form-input" style="width:70px;text-align:right;"
+                id="pe-new-trip-rev" value="0">
+        </td>
+        <td style="white-space:nowrap;">
+            <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;" title="Сохранить"
+                onclick="peAddTrip(${paramId})">
+                <i class="fas fa-save"></i>
+            </button>
+            <button class="btn btn-default" style="padding:4px 8px;font-size:11px;margin-left:2px;" title="Отмена"
+                onclick="document.getElementById('pe-trip-new-row').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(row);
+    document.getElementById('pe-new-trip-name').focus();
+}
+
+async function peSaveParams(paramId) {
+    const statusEl = document.getElementById('pe-edit-status');
+    const route = document.getElementById('pe-edit-route').value;
+    const dateFrom = document.getElementById('pe-edit-date-from').value;
+    const dateTo = document.getElementById('pe-edit-date-to').value;
+    const season = document.getElementById('pe-edit-season').value;
+    const source = document.getElementById('pe-edit-source').value;
+    const fwd = document.getElementById('pe-edit-fwd').value;
+    const rev = document.getElementById('pe-edit-rev').value;
+
+    if (!route) {
+        statusEl.innerHTML = '<div class="alert alert-error">Номер маршрута обязателен</div>';
+        return;
+    }
+    if (!dateFrom) {
+        statusEl.innerHTML = '<div class="alert alert-error">Дата начала обязательна</div>';
+        return;
+    }
+
+    const payload = {
+        route: route,
+        date_from: dateFrom,
+        date_to: dateTo || null,
+        season: season,
+        source_appendix: source,
+        length_forward: fwd !== '' ? parseFloat(fwd) : null,
+        length_reverse: rev !== '' ? parseFloat(rev) : null,
+    };
+
+    statusEl.innerHTML = '<span style="color:var(--text-secondary);"><i class="fas fa-spinner fa-spin"></i> Сохранение...</span>';
+
+    try {
+        const res = await fetch(`/api/params-editor/params/${paramId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            statusEl.innerHTML = '<div class="alert alert-success">Сохранено</div>';
+            // Обновляем кэш и перезагружаем таблицу
+            const p = window._peParamsCache[paramId];
+            if (p) {
+                p.date_from = dateFrom;
+                p.date_to = dateTo || null;
+                p.season = season;
+                p.source_appendix = source;
+                p.length_forward = fwd !== '' ? parseFloat(fwd) : null;
+                p.length_reverse = rev !== '' ? parseFloat(rev) : null;
+                peRenderTable(Object.values(window._peParamsCache));
+            }
+        } else {
+            const err = await res.json();
+            statusEl.innerHTML = `<div class="alert alert-error">${err.detail || 'Ошибка сохранения'}</div>`;
+        }
+    } catch (e) {
+        statusEl.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function peSaveTrip(tripId, paramId) {
+    const name = document.getElementById(`pe-trip-name-${tripId}`).value;
+    const fwd = parseInt(document.getElementById(`pe-trip-fwd-${tripId}`).value) || 0;
+    const rev = parseInt(document.getElementById(`pe-trip-rev-${tripId}`).value) || 0;
+
+    const btn = document.querySelector(`#pe-trip-row-${tripId} .btn-primary`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+    try {
+        const res = await fetch(`/api/params-editor/trips/${tripId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({day_type_name: name, forward_number: fwd, reverse_number: rev}),
+        });
+        if (res.ok) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check" style="color:#52c41a;"></i>'; }
+            // Обновляем кэш
+            const p = window._peParamsCache && window._peParamsCache[paramId];
+            if (p) {
+                const trip = p.trips.find(t => t.id === tripId);
+                if (trip) { trip.day_type_name = name; trip.forward_number = fwd; trip.reverse_number = rev; }
+            }
+            setTimeout(() => { if (btn) btn.innerHTML = '<i class="fas fa-save"></i>'; }, 2000);
+        } else {
+            const err = await res.json();
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i>'; }
+            alert(err.detail || 'Ошибка сохранения');
+        }
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i>'; }
+        alert('Ошибка: ' + e.message);
+    }
+}
+
+async function peAddTrip(paramId) {
+    const name = document.getElementById('pe-new-trip-name').value.trim();
+    if (!name) { alert('Укажите тип дня'); return; }
+    const fwd = parseInt(document.getElementById('pe-new-trip-fwd').value) || 0;
+    const rev = parseInt(document.getElementById('pe-new-trip-rev').value) || 0;
+
+    try {
+        const res = await fetch(`/api/params-editor/params/${paramId}/trips`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({day_type_name: name, forward_number: fwd, reverse_number: rev}),
+        });
+        if (res.ok) {
+            const newTrip = await res.json();
+            const p = window._peParamsCache && window._peParamsCache[paramId];
+            if (p) p.trips.push(newTrip);
+            peRenderTrips(paramId);
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Ошибка добавления');
+        }
+    } catch (e) {
+        alert('Ошибка: ' + e.message);
+    }
+}
+
+async function peDeleteTrip(tripId, paramId) {
+    if (!confirm('Удалить тип дня?')) return;
+
+    try {
+        const res = await fetch(`/api/params-editor/trips/${tripId}`, {method: 'DELETE'});
+        if (res.ok) {
+            const p = window._peParamsCache && window._peParamsCache[paramId];
+            if (p) p.trips = p.trips.filter(t => t.id !== tripId);
+            peRenderTrips(paramId);
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Ошибка удаления');
+        }
+    } catch (e) {
+        alert('Ошибка: ' + e.message);
+    }
+}
+
+async function peDeleteParams(paramId) {
+    const p = window._peParamsCache && window._peParamsCache[paramId];
+    const label = p ? `ID ${paramId} (${p.date_from} — ${p.date_to || '...'}, ${p.source_appendix || 'без источника'})` : `ID ${paramId}`;
+    if (!confirm(`Удалить запись параметров ${label}?\n\nВместе с ней будут удалены все привязанные рейсы.`)) return;
+
+    try {
+        const res = await fetch(`/api/params-editor/params/${paramId}`, {method: 'DELETE'});
+        if (res.ok) {
+            delete window._peParamsCache[paramId];
+            const remaining = Object.values(window._peParamsCache);
+            if (remaining.length > 0) {
+                peRenderTable(remaining);
+            } else {
+                document.getElementById('pe-results').innerHTML =
+                    '<div class="alert alert-info">Параметры для этого маршрута не найдены</div>';
+            }
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Ошибка удаления');
+        }
+    } catch (e) {
+        alert('Ошибка: ' + e.message);
+    }
+}
+</script>
+{% endblock %}
