@@ -121,67 +121,98 @@ def get_docx_data(file_bytes: bytes) -> tuple[list[str], list[list[list[str]]], 
     return paragraphs, tables, body_sequence
 
 
+def _convert_doc_to_docx_bytes(file_bytes: bytes) -> bytes:
+    """Конвертирует .doc байты в .docx байты через LibreOffice (работает на Linux/Docker)."""
+    import subprocess
+    import shutil
+
+    if not shutil.which("libreoffice") and not shutil.which("soffice"):
+        raise RuntimeError(
+            "LibreOffice не найден. На Windows установите pywin32, "
+            "на Linux/Docker установите libreoffice-writer."
+        )
+    lo_cmd = shutil.which("libreoffice") or shutil.which("soffice")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        doc_path = os.path.join(tmpdir, "input.doc")
+        with open(doc_path, "wb") as f:
+            f.write(file_bytes)
+
+        subprocess.run(
+            [lo_cmd, "--headless", "--convert-to", "docx", "--outdir", tmpdir, doc_path],
+            check=True,
+            capture_output=True,
+        )
+
+        docx_path = os.path.join(tmpdir, "input.docx")
+        with open(docx_path, "rb") as f:
+            return f.read()
+
+
 def get_doc_data(file_bytes: bytes) -> tuple[list[str], list[list[list[str]]]]:
     """
     Извлекает параграфы и таблицы из doc файла (старый формат Word).
+    На Windows использует win32com, на Linux/Docker — LibreOffice.
     """
-    if not DOC_SUPPORT:
-        raise ImportError("Для работы с .doc файлами установите: pip install pywin32")
-
-    # COM требует STA-инициализацию в каждом потоке (нужно для run_in_executor)
-    try:
-        import pythoncom
-        pythoncom.CoInitialize()
-        _com_initialized = True
-    except Exception:
-        _com_initialized = False
-
-    with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
-        tmp.write(file_bytes)
-        tmp_path = tmp.name
-
-    try:
-        word = win32com.client.Dispatch("Word.Application")
-        word.Visible = False
-        doc = word.Documents.Open(tmp_path)
-
-        paragraphs = []
-        for para in doc.Paragraphs:
-            text = para.Range.Text.strip()
-            if text:
-                paragraphs.append(text)
-
-        tables = []
-        for table in doc.Tables:
-            table_data = []
-            for row_idx in range(1, table.Rows.Count + 1):
-                row_data = []
-                for col_idx in range(1, table.Columns.Count + 1):
-                    try:
-                        cell_text = table.Cell(row_idx, col_idx).Range.Text.strip()
-                        # Убираем служебные символы Word
-                        cell_text = cell_text.replace("\r", "").replace("\x07", "")
-                        row_data.append(cell_text)
-                    except Exception:
-                        row_data.append("")
-                table_data.append(row_data)
-            tables.append(table_data)
-
-        doc.Close(False)
-        word.Quit()
-
-        return paragraphs, tables
-    finally:
+    if DOC_SUPPORT:
+        # Windows: используем COM/win32com
         try:
-            os.unlink(tmp_path)
+            import pythoncom
+            pythoncom.CoInitialize()
+            _com_initialized = True
         except Exception:
-            pass
-        if _com_initialized:
+            _com_initialized = False
+
+        with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+
+        try:
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+            doc = word.Documents.Open(tmp_path)
+
+            paragraphs = []
+            for para in doc.Paragraphs:
+                text = para.Range.Text.strip()
+                if text:
+                    paragraphs.append(text)
+
+            tables = []
+            for table in doc.Tables:
+                table_data = []
+                for row_idx in range(1, table.Rows.Count + 1):
+                    row_data = []
+                    for col_idx in range(1, table.Columns.Count + 1):
+                        try:
+                            cell_text = table.Cell(row_idx, col_idx).Range.Text.strip()
+                            cell_text = cell_text.replace("\r", "").replace("\x07", "")
+                            row_data.append(cell_text)
+                        except Exception:
+                            row_data.append("")
+                    table_data.append(row_data)
+                tables.append(table_data)
+
+            doc.Close(False)
+            word.Quit()
+
+            return paragraphs, tables
+        finally:
             try:
-                import pythoncom
-                pythoncom.CoUninitialize()
+                os.unlink(tmp_path)
             except Exception:
                 pass
+            if _com_initialized:
+                try:
+                    import pythoncom
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
+    else:
+        # Linux/Docker: конвертируем через LibreOffice → читаем как docx
+        docx_bytes = _convert_doc_to_docx_bytes(file_bytes)
+        paragraphs, tables, _ = get_docx_data(docx_bytes)
+        return paragraphs, tables
 
 
 def get_word_data(file_bytes: bytes, filename: str) -> tuple[list[str], list[list[list[str]]], list[tuple]]:

@@ -3,6 +3,7 @@ FROM python:3.11-slim
 # Системные зависимости: p7zip для RAR-архивов
 RUN apt-get update && apt-get install -y --no-install-recommends \
     p7zip-full \
+    libreoffice-writer \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

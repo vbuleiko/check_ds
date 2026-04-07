@@ -97,6 +97,36 @@ def _get_docx_data(file_bytes: bytes) -> tuple[list[str], list[list[list[str]]]]
     return paragraphs, tables
 
 
+def _convert_doc_to_docx_bytes(file_bytes: bytes) -> bytes:
+    """Конвертирует .doc байты в .docx байты через LibreOffice (работает на Linux/Docker)."""
+    import subprocess
+    import shutil
+    import tempfile
+    import os
+
+    lo_cmd = shutil.which("libreoffice") or shutil.which("soffice")
+    if not lo_cmd:
+        raise RuntimeError(
+            "LibreOffice не найден. На Windows установите pywin32, "
+            "на Linux/Docker установите libreoffice-writer."
+        )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        doc_path = os.path.join(tmpdir, "input.doc")
+        with open(doc_path, "wb") as f:
+            f.write(file_bytes)
+
+        subprocess.run(
+            [lo_cmd, "--headless", "--convert-to", "docx", "--outdir", tmpdir, doc_path],
+            check=True,
+            capture_output=True,
+        )
+
+        docx_path = os.path.join(tmpdir, "input.docx")
+        with open(docx_path, "rb") as f:
+            return f.read()
+
+
 def _get_doc_data_win32(file_path: Path) -> tuple[list[str], list[list[list[str]]]]:
     """Извлекает параграфы и таблицы из .doc файла через win32com."""
     if not DOC_SUPPORT:
@@ -432,15 +462,20 @@ def parse_vysvobozhdenie(file_bytes: bytes, filename: str) -> dict:
     if ext == ".docx":
         paragraphs, tables = _get_docx_data(file_bytes)
     elif ext == ".doc":
-        # Для .doc нужен временный файл
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
-            tmp.write(file_bytes)
-            tmp_path = Path(tmp.name)
-        try:
-            paragraphs, tables = _get_doc_data_win32(tmp_path)
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        if DOC_SUPPORT:
+            # Windows: используем win32com
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as tmp:
+                tmp.write(file_bytes)
+                tmp_path = Path(tmp.name)
+            try:
+                paragraphs, tables = _get_doc_data_win32(tmp_path)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+        else:
+            # Linux/Docker: конвертируем через LibreOffice → читаем как docx
+            docx_bytes = _convert_doc_to_docx_bytes(file_bytes)
+            paragraphs, tables = _get_docx_data(docx_bytes)
     else:
         raise ValueError(f"Неподдерживаемый формат файла: {ext}")
 
